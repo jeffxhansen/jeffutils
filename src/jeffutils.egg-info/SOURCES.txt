@@ -1,0 +1,10 @@
+LICENSE.txt
+README.md
+pyproject.toml
+setup.py
+src/jeffutils/__init__.py
+src/jeffutils/utils.py
+src/jeffutils.egg-info/PKG-INFO
+src/jeffutils.egg-info/SOURCES.txt
+src/jeffutils.egg-info/dependency_links.txt
+src/jeffutils.egg-info/top_level.txt
