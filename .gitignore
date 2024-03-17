@@ -3,5 +3,5 @@ dist
 src/jeffutils.egg-info
 
 
-inner_build_and_deploy.sh
-build_and_deploy.exp
+inner_build_and_upload.sh
+build_and_upload.exp
