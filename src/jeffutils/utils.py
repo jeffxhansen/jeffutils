@@ -1,6 +1,8 @@
 from time import perf_counter
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+from collections import defaultdict
+import sqlite3 as sql
 import json
 import numpy as np
 import pandas as pd
@@ -10,6 +12,8 @@ import pstats
 import cProfile
 import traceback
 from IPython.display import display
+from copy import deepcopy
+import ast
 
 MAX_ROWS = 50
 NP_FLOAT_PRECISION = 7
@@ -29,19 +33,19 @@ def stack_trace(e):
     """
     return "".join(traceback.TracebackException.from_exception(e).format())
 
-def curr_time_str():
-    """returns the current time as a string YYYY-MM-DD"""
-    now = datetime.utcnow()
-    now_str = now.strftime("%m-%d-%Y")
+def curr_time_str(format="%m-%d-%Y"):
+    """returns the current time as a string MM-DD-YYYY"""
+    now = datetime.now(timezone.utc)
+    now_str = now.strftime(format)
     return now_str
 
-def current_time(utc=True, string=True, timestamp=False, hour_24=False):
+def current_time(utc=True, string=True, timestamp=False, hour_24=False, seconds=False):
     """prints the current time in YYYY-MM-DD HH:MM pm/am format
     can specify current utc time or current local time
     default local
     """
     if utc:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
     else:
         now = datetime.now()
 
@@ -51,15 +55,22 @@ def current_time(utc=True, string=True, timestamp=False, hour_24=False):
     if not string:
         return now
 
-    if not hour_24:
-        format = "%Y-%m-%d %I:%M %p"
+    if seconds:
+        if not hour_24:
+            format = "%Y-%m-%d %I:%M:%S %p"
+        else:
+            format = "%Y-%m-%d %H:%M:%S"
     else:
-        format = "%Y-%m-%d %H:%M"
+        if not hour_24:
+            format = "%Y-%m-%d %I:%M %p"
+        else:
+            format = "%Y-%m-%d %H:%M"
         
     current_time_str = now.strftime(format)
     return current_time_str
 
-def log_print(*args, end="\n", flush=False, sep=" ", filepath="logs/live_log.txt", header=False, utc=False, only_log=False):
+def log_print(*args, end="\n", flush=False, sep=" ", filepath="logs/live_log.txt", 
+              header=False, utc=False, only_log=False, seconds=False):
     """functions like a normal print, but also sends whatever is printed to
     a specified file with './print_log.txt' set as the default
     """
@@ -72,11 +83,18 @@ def log_print(*args, end="\n", flush=False, sep=" ", filepath="logs/live_log.txt
     # print to the standard output stream
     if not only_log:
         print(string, end=end, flush=flush, sep=sep)
+        
+    # Get the directory of the filepath
+    directory = os.path.dirname(filepath)
+
+    # Create the directory if it doesn't exist
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory)
 
     # add the output to the filepath specified
     with open(filepath, "a+") as file:
         if header:
-            file.write(current_time(string=True, utc=utc, timestamp=False))
+            file.write(current_time(string=True, utc=utc, timestamp=False, seconds=seconds))
             file.write("\n" + "-"*3 + "\n")
         file.write(string)
         file.write(end)
@@ -134,6 +152,41 @@ def p(string=None):
     else:
         print("DONE", round(perf_counter() - print_time_p, 3), "sec", flush=True)
         
+        
+def format_text_to_lines(input_text, max_line_length=60):
+    """
+    Format the input text into lines with a maximum line length of 'max_line_length'.
+
+    Args:
+        input_text (str): The input text to be formatted.
+        max_line_length (int): Maximum desired length of each line.
+
+    Returns:
+        str: The formatted text with newlines inserted appropriately.
+    """
+    words = input_text.split()
+    lines = []
+    current_line = ""
+
+    for word in words:
+        if len(current_line) + len(word) + 1 > max_line_length:  # Check if adding this word exceeds the max line length
+            lines.append(current_line)  # Add the current line to the list of lines
+            current_line = word  # Start a new line with the current word
+        else:
+            if current_line:  # Add a space if the current line is not empty
+                current_line += " "
+            current_line += word  # Add the word to the current line
+
+    # Add the last line to the list of lines
+    if current_line:
+        lines.append(current_line)
+
+    # Join the lines with newline characters to form the formatted text
+    formatted_text = "\n".join(lines)
+
+    return formatted_text
+
+        
 
 ###################
 # PANDA FUNCTIONS #
@@ -177,7 +230,7 @@ def fill_nan_with_empty_list(df, column, inplace=True):
     if not inplace:
         return df[column]
     
-def print_display(variable_name, max_rows=None, shuffle=False):
+def print_display(variable_name, variables, max_rows=None, shuffle=False):
     """ this is a better display function where you can specify how many rows to
     show for the dataframe, and it also prints the dataframe name
     
@@ -190,11 +243,11 @@ def print_display(variable_name, max_rows=None, shuffle=False):
         this allows you to see random rows in the middle instead of just the first
         few rows and then the last few rows
     """
-    if max_rows is None and "MAX_ROWS" in globals():
+    if max_rows is None and "MAX_ROWS" in variables:
         max_rows = MAX_ROWS
     
     # Get the local variables from the current scope
-    local_vars = globals()
+    local_vars = variables
 
     # Check if the variable with the specified name exists
     if variable_name in local_vars:
@@ -226,8 +279,38 @@ def print_display(variable_name, max_rows=None, shuffle=False):
     else:
         print(f"Variable '{variable_name}' not found.")
         
-def movecol(df, cols_to_move=[], ref_col='', place='After'):
+def movecol(df, cols_to_move=None, ref_col='', place='After', make_copy=True):
+    """
+    Move columns within a DataFrame to a specified position relative to a reference column.
+
+    Parameters:
+    - df (DataFrame): The DataFrame containing the columns to be moved.
+    - cols_to_move (list): A list of column names to be moved.
+    - ref_col (str): The name of the reference column relative to which the specified columns will be moved.
+    - place (str): The position where the specified columns will be placed relative to the reference column. 
+      It can be either 'After' or 'Before'.\
+    - make_copy (bool): Whether to return a new DataFrame or modify the original DataFrame in place.
+
+    Returns:
+    - DataFrame: The DataFrame with the specified columns moved to the desired position relative to the reference column.
+
+    Example:
+    If df is a DataFrame with columns 'A', 'B', 'C', 'D' and you want to move columns 'B' and 'C' 
+    after column 'A', you can use:
+    
+    movecol(df, cols_to_move=['B', 'C'], ref_col='A', place='After')
+    """
+    if make_copy:
+        df = df.copy()
+    
+    # If cols_to_move is not provided, set it as an empty list
+    if cols_to_move is None:
+        cols_to_move = []
+        
+    # Get the list of columns in the DataFrame
     cols = df.columns.tolist()
+    
+    # move the columns around and return the dataframe
     if place == 'After':
         seg1 = cols[:list(cols).index(ref_col) + 1]
         seg2 = cols_to_move
@@ -236,7 +319,8 @@ def movecol(df, cols_to_move=[], ref_col='', place='After'):
         seg2 = cols_to_move + [ref_col]
     seg1 = [i for i in seg1 if i not in seg2]
     seg3 = [i for i in cols if i not in seg1 + seg2]
-    return(df[seg1 + seg2 + seg3])
+    return df[seg1 + seg2 + seg3]
+
     
 ###################
 # NUMPY FUNCTIONS #
@@ -272,8 +356,35 @@ def np_map(arr, map):
 # FUNCTIONALITY FUNCTIONS #
 ###########################
 
+def str_to_list_py(string):
+    try:
+        # Using ast.literal_eval to safely evaluate string as Python literal
+        parsed_list = ast.literal_eval(string)
+        if isinstance(parsed_list, list):
+            return parsed_list
+        else:
+            raise ValueError("Input is not a valid string representation of a list.")
+    except (SyntaxError, ValueError) as e:
+        print(f"Error: {e}")
+        return None
+
 def argmax_py(lst):
     return max(range(len(lst)), key=lambda x: lst[x])
+
+
+def dict_update(d:dict, d_:dict, inplace=False):
+    """ takes in two dictionaries and adds the key-value pairs from the second 
+    dictionary to the first dictionary. If inplace is False, then it will return
+    a new dictionary with the updated key-value pairs. If inplace is True, then
+    it will update the first dictionary with the key-value pairs from the second
+    and return None
+    """
+    if not inplace:
+        d2 = deepcopy(d)
+        d2.update(d_)
+        return d2
+    else:
+        d.update(d_)
 
 
 def time_function(func, *args, **kwargs):
@@ -321,7 +432,7 @@ def time_function(func, *args, **kwargs):
             os.remove(prof_path)
 
             
-def print_skip_exceptions(full_stack_trace=True):
+def print_skip_exceptions(full_stack_trace=True, log_error=True):
     """ a decorator that will just print an exception thrown
     by the function without raising it up the call stack
     
@@ -344,9 +455,13 @@ def print_skip_exceptions(full_stack_trace=True):
                 raise e
             except Exception as e:
                 if full_stack_trace:
-                    print(stack_trace(e))
+                    string = stack_trace(e)
                 else:
-                    print(e)
+                    string = e
+                if log_error:
+                    log_print(string)
+                else:
+                    print(string)
                 return None
             
         return wrapper
@@ -387,3 +502,164 @@ def monitor_threads(*threads, path="logs/threads_running.json"):
         # sleep for 1 minute, so that it only checks all of the threads
         # every minute
         time.sleep(60)
+        
+############################################################
+#                       SQL FUNCTIONS                      #
+############################################################
+
+def get_sql_tables_info(db_path, verbose=True):
+    """
+    Retrieve and print all table names and their respective column names from a SQLite database.
+
+    Args:
+        db_path (str): The file path to the SQLite database.
+        verbose (bool): If True, prints the table names and columns to the console. Default is True.
+
+    Returns:
+        dict: A dictionary where the keys are table names and the values are lists of column names for each table.
+    
+    Example:
+        >>> sql_table_names_and_cols('example.db', verbose=True)
+        table1: id, name, age
+        table2: id, department, salary
+        {
+            'table1': {
+                'id': {'cid': 0, 'name': 'id', 'type': 'INTEGER', 'notnull': 0, 'dflt_value': None, 'pk': 0},
+                'name': {'cid': 1, 'name': 'name', 'type': 'TEXT', 'notnull': 0, 'dflt_value': None, 'pk': 0},
+                'age': {'cid': 2, 'name': 'age', 'type': 'INTEGER', 'notnull': 0, 'dflt_value': None, 'pk': 0}
+            }
+            'table2': {
+                'id': {'cid': 0, 'name': 'id', 'type': 'INTEGER', 'notnull'},
+                'departmet': {'cid': 1, 'name': 'department', 'type': 'TEXT', 'notnull': 0, 'dflt_value': None, 'pk': 0},
+                'salary': {'cid': 2, 'name': 'salary', 'type': 'INTEGER', 'notnull': 0, 'dflt_value': None, 'pk': 0}
+            }
+        }
+    
+    Note:
+        Ensure the database file exists at the specified path before calling this function.
+    """
+    # make sure the db_path exists and is a sqlite .db file
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(f"Database file not found at path: {db_path}")
+    if not db_path.endswith('.db'):
+        raise ValueError("Database file must be a SQLite file with a .db extension.")
+    
+    try:
+        table_info = defaultdict(dict)
+        
+        with sql.connect(db_path) as conn:
+            cur = conn.cursor()
+            
+            # extrac each of the table names
+            query = '''
+            SELECT name FROM sqlite_master WHERE type='table'
+            '''
+            result = cur.execute(query).fetchall()
+            
+            # fore each table extract the table column information
+            for row in result:
+                table_name = row[0]
+                
+                # use PRAGMA table_info to get the column names
+                # and all of the information for each column
+                query = (
+                    f"PRAGMA table_info({table_name}) "
+                )
+                result = cur.execute(query).fetchall()
+                for row in result:
+                    cid, name, type, notnull, dflt_value, pk = row
+                    entry = {
+                        'cid': cid,
+                        'name': name,
+                        'type': type,
+                        'notnull': notnull,
+                        'dflt_value': dflt_value,
+                        'pk': pk
+                    }
+                    table_info[table_name][name] = entry
+            
+    finally:
+        conn.close()
+        
+    if verbose:
+        for table_name, col_names in table_info.items():
+            print(f'{table_name}:', ", ".join(map(str, col_names)))
+            
+    return table_info
+
+def get_unique_counts(path_db, table_name, ref_col, cols):
+    """
+    Retrieve the count of unique values for specified columns grouped by a reference column from a SQLite table.
+
+    Args:
+        path_db (str): Path to the SQLite database file.
+        table_name (str): Name of the table in the database.
+        ref_col (str): Name of the reference column to group by.
+        cols (list): List of column names for which to count unique values.
+
+    Returns:
+        pandas.DataFrame: DataFrame containing the count of unique values for each specified column grouped by the reference column.
+
+    Example:
+        Given input data in GameTest table:
+        game_id  A  B
+        0         0  a  a
+        1         0  a  a
+        2         0  a  b
+        3         0  a  b
+        4         0  a  b
+        5         1  b  c
+        6         1  b  c
+        7         1  b  c
+        8         1  b  c
+        9         1  b  d
+        10        1  b  d
+        11        1  b  e
+
+        Calling get_unique_counts('your_database.db', 'GameTest', 'game_id', ['A', 'B']) returns:
+           game_id  unique_A  unique_B
+        0        0         1         2
+        1        1         1         3
+    """
+    if not os.path.exists(path_db):
+        raise FileNotFoundError(f"Database file not found: {path_db}")
+    if not path_db.endswith('.db'):
+        raise ValueError("Database file must have a .db extension")
+    
+    try:
+        with sql.connect(path_db) as conn:
+            cur = conn.cursor()
+            query = (
+                f"SELECT {ref_col}, " + 
+                    ', '.join([f'COUNT(DISTINCT {col}) AS unique_{col}' for col in cols]) + 
+                f" FROM {table_name} \n"
+                f"GROUP BY {ref_col}"
+            )
+            res_df = pd.read_sql_query(query, conn)
+    finally:
+        conn.close()
+        
+    return res_df
+
+def get_sql_table_as_df(db_path, table_name):
+    """ Get the table as a pandas DataFrame
+    
+    Args:
+    db_path (str): The path to the database file
+    table_name (str): The name of the table
+    
+    Returns:
+    pd.DataFrame: The table as a DataFrame
+    """
+    # validate the input
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(f"Database file {db_path} does not exist")
+    if not db_path.endswith(".db"):
+        raise ValueError(f"Table name {table_name} should end with .db")
+    
+    # get the table as a DataFrame
+    try:
+        with sql.connect(db_path) as conn:
+            return pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
+    finally:
+        conn.close()
