@@ -23,6 +23,10 @@ PD_FLOAT_PRECISION_F = lambda x: "{0:0.7f}".format(x) # shows 7 decimal places
 PD_MAX_COLUMNS = None # show all of the columns
 PD_MAX_ROWS = 50 # show up to 50 rows instead of the default 20
 
+# this specifies hwo long the live_log.txt lines should be when calling
+# the log_func_vars function
+LENGTH_LIM = 100
+
 ######################
 # PRINTING FUNCTIONS #
 ######################
@@ -103,6 +107,80 @@ def log_print(*args, end="\n", flush=False, sep=" ", filepath="logs/live_log.txt
                 file.write("-"*3 + "\n")
             else:
                 file.write("\n" + "-"*3 + "\n")
+                
+def get_log_dict(var_names, globals, locals):
+    """ takes in a list of strings that represent variable names, and 
+    takes in the locals() dictionary. Returns a dictionary of the form:
+    {
+        var_name1: var_value1,
+        var_name2: var_value2,
+    }
+    """
+    var_dict = {**globals, **locals}
+    return {
+        var_name: var_dict.get(var_name, "NA") 
+        for var_name in var_names
+    }
+
+def get_log_string(func_name, info_dict):
+    """ returns a log_string of the form:
+    
+    func_name: key1: value1, key2: value2, 
+        key3: value3, key4: value4,
+    """
+    string = ""
+    curr_line = f"{func_name}: "
+    
+    for key, value in info_dict.items():
+        curr = f"{key}: {value}, "
+        # if adding this info value would make the line too long, wrap it to the next line
+        if len(curr_line + curr) > LENGTH_LIM:
+            string += curr_line + "\n    "
+            curr_line = ""
+        curr_line += curr
+    
+    return string + curr_line
+
+def log_func_vars(func_name, vars, globals, locals, header=True, LOG_TOGGLE=None):
+    """
+    Logs the information in a formatted way.
+
+    Parameters:
+    func_name (str): The title of the function that is making this log.
+    vars (list): a list of strings that represent the variable names to log.
+    globals (dict): The global variables dictionary, typically passed as globals().
+    locals (dict): The local variables dictionary, typically passed as locals().
+    header (bool, optional): Whether to print a header before the log string. Defaults to True.
+    
+    the logged string looks like:
+    func_name: var_name1: var_val1, var_name2: var_val2, 
+        var_name3: var_val3, var_name4: var_val4,
+    
+    Returns:
+    str: The formatted log string.
+
+    Notes:
+    - The function will default to logging the information unless the LOG_TOGGLE dictionary has the function name set to False.
+    """
+    if LOG_TOGGLE is None:
+        LOG_TOGGLE = {}
+    # default to logging the function instead of not logging it
+    if not LOG_TOGGLE.get(func_name, True):
+        return
+    info_dict = get_log_dict(vars, globals, locals)
+    string = get_log_string(func_name, info_dict)
+    log_print(string, header=header)
+    
+    return string
+
+def initialize_log_func_vars_func(LOG_TOGGLE):
+    """ returns a function that will log the variables of a function
+    with the LOG_TOGGLE dictionary set to LOG_TOGGLE
+    """
+    def log_func_vars_func(func_name, vars, globals, locals, header=True):
+        return log_func_vars(func_name, vars, globals, locals, header=header, LOG_TOGGLE=LOG_TOGGLE)
+    
+    return log_func_vars_func
             
 def format_perc(perc):
     """takes in a percentage as a decimal and formats it
