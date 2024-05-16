@@ -99,7 +99,10 @@ def log_print(*args, end="\n", flush=False, sep=" ", filepath="logs/live_log.txt
         file.write(string)
         file.write(end)
         if header:
-            file.write("\n" + "-"*3 + "\n")
+            if end == "\n":
+                file.write("-"*3 + "\n")
+            else:
+                file.write("\n" + "-"*3 + "\n")
             
 def format_perc(perc):
     """takes in a percentage as a decimal and formats it
