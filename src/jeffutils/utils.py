@@ -142,7 +142,6 @@ def get_log_string(func_name, info_dict):
     
     return string + curr_line
 
-@print_skip_exceptions(full_stack_trace=False, log_error=True)
 def log_func_vars(func_name, vars, globals, locals, header=True):
     """
     Logs the information in a formatted way.
