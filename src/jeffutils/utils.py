@@ -107,7 +107,8 @@ def log_print(*args, end="\n", flush=False, sep=" ", filepath="logs/live_log.txt
                 file.write("-"*3 + "\n")
             else:
                 file.write("\n" + "-"*3 + "\n")
-                
+            
+
 def get_log_dict(var_names, globals, locals):
     """ takes in a list of strings that represent variable names, and 
     takes in the locals() dictionary. Returns a dictionary of the form:
@@ -141,7 +142,8 @@ def get_log_string(func_name, info_dict):
     
     return string + curr_line
 
-def log_func_vars(func_name, vars, globals, locals, header=True, LOG_TOGGLE=None):
+@print_skip_exceptions(full_stack_trace=False, log_error=True)
+def log_func_vars(func_name, vars, globals, locals, header=True):
     """
     Logs the information in a formatted way.
 
@@ -162,11 +164,6 @@ def log_func_vars(func_name, vars, globals, locals, header=True, LOG_TOGGLE=None
     Notes:
     - The function will default to logging the information unless the LOG_TOGGLE dictionary has the function name set to False.
     """
-    if LOG_TOGGLE is None:
-        LOG_TOGGLE = {}
-    # default to logging the function instead of not logging it
-    if not LOG_TOGGLE.get(func_name, True):
-        return
     info_dict = get_log_dict(vars, globals, locals)
     string = get_log_string(func_name, info_dict)
     log_print(string, header=header)
