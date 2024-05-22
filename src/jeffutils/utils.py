@@ -74,7 +74,7 @@ def current_time(utc=True, string=True, timestamp=False, hour_24=False, seconds=
     return current_time_str
 
 def log_print(*args, end="\n", flush=False, sep=" ", filepath="logs/live_log.txt", 
-              header=False, utc=False, only_log=False, seconds=False):
+              header=True, utc=False, only_log=False, seconds=False):
     """functions like a normal print, but also sends whatever is printed to
     a specified file with './print_log.txt' set as the default
     """
