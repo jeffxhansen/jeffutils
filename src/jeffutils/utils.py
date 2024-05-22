@@ -398,6 +398,15 @@ def movecol(df, cols_to_move=None, ref_col='', place='After', make_copy=True):
     seg3 = [i for i in cols if i not in seg1 + seg2]
     return df[seg1 + seg2 + seg3]
 
+def rename_duplicate_columns(df):
+    """ renames duplicate columns in a pandas dataframe by appending a number to the end """
+    df = df.copy()
+    cols = pd.Series(df.columns)
+    for dup in cols[cols.duplicated()].unique():
+        cols[cols[cols == dup].index.values[1:]] = [f"{dup}{i}" for i in range(2, sum(cols == dup)+2-1)]
+    df.columns = cols
+    return df
+
     
 ###################
 # NUMPY FUNCTIONS #
