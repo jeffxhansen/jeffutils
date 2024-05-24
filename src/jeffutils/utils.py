@@ -145,7 +145,7 @@ def get_log_string(func_name, info_dict):
     
     return string + curr_line
 
-def log_func_vars(func_name, vars, globals, locals, header=True):
+def log_func_vars(func_name, vars, globals, locals, header=True, only_log=False):
     """
     Logs the information in a formatted way.
 
@@ -168,7 +168,7 @@ def log_func_vars(func_name, vars, globals, locals, header=True):
     """
     info_dict = get_log_dict(vars, globals, locals)
     string = get_log_string(func_name, info_dict)
-    log_print(string, header=header)
+    log_print(string, header=header, only_log=only_log)
     
     return string
 
