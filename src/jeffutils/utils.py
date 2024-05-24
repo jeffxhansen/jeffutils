@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 import io
 import os
+import sys
+import importlib
+import re
 import pstats
 import cProfile
 import traceback
@@ -588,6 +591,88 @@ def monitor_threads(*threads, path="logs/threads_running.json"):
         # sleep for 1 minute, so that it only checks all of the threads
         # every minute
         time.sleep(60)
+        
+def reimport(import_statement:str):
+    """ takes in any single import statement and imports/reimports the module
+    and handles associated aliases.
+    
+    Examples:
+    'import random' - imports 'random' in sys.modules
+    'import numpy as np' - imports 'numpy' in sys.modules and assigns the
+       alias 'np' in the globals() dictionary
+    'import numpy as np, pandas as pd' - imports both numpy and pandas
+       with their associated aliases
+    'from jeffutils.utils import pprint, stack_trace, log_print as lp' -
+       imports pprint, stack_trace and log_print as lp
+       
+    raises:
+    AttributeError: if the module or function is not found in sys.modules
+    """
+    
+    def import_one(module:str):
+        """ takes in a string like 'random' or 'numpy as np' and imports that
+        module with its alias if given
+        """
+        if 'as' in module:
+            module_name, alias = module.split(' as ')
+            if module_name in sys.modules:
+                importlib.reload(sys.modules[module_name])
+                module_obj = sys.modules[module_name]
+            else:
+                module_obj = importlib.import_module(module_name)
+            globals()[alias] = module_obj
+            
+        else:
+            if module in sys.modules:
+                importlib.reload(sys.modules[module])
+                module_obj = sys.modules[module]
+            else:
+                module_obj = importlib.import_module(module)
+            
+    def import_sub_func(module, func):
+        """ handles something like "from random import randint" where 'random'
+        is the module and 'randint' is the function
+        """
+        if module not in sys.modules:
+            raise AttributeError(f"Module {module} not found in sys.modules")
+        module_obj = sys.modules[module]
+        
+        if 'as' in func:
+            func_name, alias = func.split(' as ')
+            if func_name in dir(module_obj):
+                globals()[alias] = getattr(module_obj, func_name)
+            else:
+                raise AttributeError(f"Function {func_name} not found in module {module}")
+        
+        else:
+            if func in dir(module_obj):
+                globals()[func] = getattr(module_obj, func)
+            else:
+                raise AttributeError(f"Function {func} not found in module {module}")
+    
+    # remove whitespace at the start and end of the import statement
+    import_statement = import_statement.strip()
+    
+    # extract all of the modules names ('os', 'numpy as np', 'jeffutils.utils', 'stack_trace')
+    module_re = re.compile(r"(\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b\sas\s\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b|\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b)")
+    module_names = module_re.findall(import_statement)
+    
+    # if a vanilla import statement, import each module
+    if import_statement.startswith("import"):
+        for module_name in module_names:
+            import_one(module_name)
+        
+    # if importing functions/sub-modules from a module
+    elif import_statement.startswith("from"):
+        
+        # import the base module
+        module = module_names[0]
+        import_one(module)
+        
+        # import each sub-function from the module
+        for func_name in module_names[1:]:
+            import_sub_func(module, func_name)
+    
         
 ############################################################
 #                       SQL FUNCTIONS                      #
