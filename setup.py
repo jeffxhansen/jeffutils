@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
     name='jeffutils',
-    version='0.6.5',
+    version='0.6.6',
     author='Jeff Hansen',
     author_email='jeffxhansen@gmail.com',
     description='A series of useful functions and decorators I use in most of my projects. Feel free to use them as well :)',

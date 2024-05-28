@@ -599,27 +599,27 @@ def reimport(statements:str|list):
     restart the kernel.
     
     The input can either be:
-    - a string with a single import statement\n
+    - a string with a single import statement
       ex: 'import numpy as np' or 'from random import choice, randint'
-    - a multiline string with multiple import statements\n
-      ex: '''import numpy as np\n
-      import pandas as pd\n
+    - a multiline string with multiple import statements
+      ex: '''import numpy as np
+      import pandas as pd
       from random import choice, randint'''
-    - a list of strings where each string is an import statement\n
+    - a list of strings where each string is an import statement
       ex: ['import numpy as np', 'import pandas as pd', 'from random import choice, randint']
       
-    This also handles situations where imports look like:\n
-    'from config import (
+    This also handles situations where imports look like:
+    from config import (
         thing1,
         thing2,
         thing3
-    )'
+    )
     
-    or that have the line continuation character \\ at the end of a line:\n
-    'from config import thing 1, \\
+    or that have the line continuation character \\ at the end of a line:
+    from config import thing 1, \\
         thing2, \\
         thing3
-    '
+    
     
     raises:
     AttributeError: if the module or function is not found in sys.modules
