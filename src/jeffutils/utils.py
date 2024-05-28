@@ -592,24 +592,49 @@ def monitor_threads(*threads, path="logs/threads_running.json"):
         # every minute
         time.sleep(60)
         
-def reimport(import_statement:str):
-    """ takes in any single import statement and imports/reimports the module
-    and handles associated aliases.
+def reimport(statements:str|list):
+    """ takes in python import code represented as a string or a list of strings, and
+    it reimports all of the modules and functions in the import statements. This allows
+    you to reimport modules that have been changed in the background without having to
+    restart the kernel.
     
-    Examples:
-    'import random' - imports 'random' in sys.modules
-    'import numpy as np' - imports 'numpy' in sys.modules and assigns the
-       alias 'np' in the globals() dictionary
-    'import numpy as np, pandas as pd' - imports both numpy and pandas
-       with their associated aliases
-    'from jeffutils.utils import pprint, stack_trace, log_print as lp' -
-       imports pprint, stack_trace and log_print as lp
-       
+    The input can either be:
+    - a string with a single import statement\n
+      ex: 'import numpy as np' or 'from random import choice, randint'
+    - a multiline string with multiple import statements\n
+      ex: '''import numpy as np\n
+      import pandas as pd\n
+      from random import choice, randint'''
+    - a list of strings where each string is an import statement\n
+      ex: ['import numpy as np', 'import pandas as pd', 'from random import choice, randint']
+      
+    This also handles situations where imports look like:\n
+    'from config import (
+        thing1,
+        thing2,
+        thing3
+    )'
+    
+    or that have the line continuation character \\ at the end of a line:\n
+    'from config import thing 1, \\
+        thing2, \\
+        thing3
+    '
+    
     raises:
     AttributeError: if the module or function is not found in sys.modules
-    """
     
-    def import_one(module:str):
+    DEPENDENCY NOTE: 
+    If you make changes to two files file_1.py and file_2.py, and file_2 imports file_1, if you
+    reimport file_2, then the changes in file_1 will not be reflected in file_2. You must reimport
+    both file_1 and file_2 to see the changes in file_1 reflected in file_2.
+       
+    """
+    ##########################
+    # inner helper functions #
+    ##########################
+    
+    def _import_one(module:str):
         """ takes in a string like 'random' or 'numpy as np' and imports that
         module with its alias if given
         """
@@ -629,7 +654,7 @@ def reimport(import_statement:str):
             else:
                 module_obj = importlib.import_module(module)
             
-    def import_sub_func(module, func):
+    def _import_sub_fun(module, func):
         """ handles something like "from random import randint" where 'random'
         is the module and 'randint' is the function
         """
@@ -643,36 +668,103 @@ def reimport(import_statement:str):
                 globals()[alias] = getattr(module_obj, func_name)
             else:
                 raise AttributeError(f"Function {func_name} not found in module {module}")
-        
         else:
             if func in dir(module_obj):
                 globals()[func] = getattr(module_obj, func)
             else:
                 raise AttributeError(f"Function {func} not found in module {module}")
-    
-    # remove whitespace at the start and end of the import statement
-    import_statement = import_statement.strip()
-    
-    # extract all of the modules names ('os', 'numpy as np', 'jeffutils.utils', 'stack_trace')
-    module_re = re.compile(r"(\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b\sas\s\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b|\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b)")
-    module_names = module_re.findall(import_statement)
-    
-    # if a vanilla import statement, import each module
-    if import_statement.startswith("import"):
-        for module_name in module_names:
-            import_one(module_name)
+            
+    def _process_single_import_statement(import_statement:str):
+        """ takes in a single import statement like 'import numpy as np' or 'from random import choice'
+        and imports the module or function
+        """
+        # remove whitespace at the start and end of the import statement
+        import_statement = import_statement.strip()
         
-    # if importing functions/sub-modules from a module
-    elif import_statement.startswith("from"):
+        # extract all of the modules names ('os', 'numpy as np', 'jeffutils.utils', 'stack_trace')
+        module_re = re.compile(r"(\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b\sas\s\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b|\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b)")
+        module_names = module_re.findall(import_statement)
         
-        # import the base module
-        module = module_names[0]
-        import_one(module)
+        # if a vanilla import statement, import each module
+        if import_statement.startswith("import"):
+            for module_name in module_names:
+                _import_one(module_name)
+            
+        # if importing functions/sub-modules from a module
+        elif import_statement.startswith("from"):
+            
+            # import the base module
+            module = module_names[0]
+            _import_one(module)
+            
+            # import each sub-function from the module
+            for func_name in module_names[1:]:
+                _import_sub_fun(module, func_name)
+                
+    def _get_statements_from_str(statements):
+        """ takes in a statement representing python import code and returns a list of
+        all of the import statements in that code. This handles situations where the import
+        statements are split by newlines or have (...) blocks in them
+        """
+        # first strip the input string of any leading/trailing whitespace
+        statements = statements.strip()
         
-        # import each sub-function from the module
-        for func_name in module_names[1:]:
-            import_sub_func(module, func_name)
+        # if there is any () to break up an import statement, convert this to one line
+        if "(" in statements and ")" in statements:
+            
+            # extract the (...) block
+            start_paren = statements.index("(")
+            end_paren = statements.index(")")
+            sub_str = statements[start_paren:end_paren+1]
+            
+            # make the entire statement a single line
+            sub_strs = sub_str.split("\n")
+            sub_strs = [s.strip() for s in sub_strs]
+            sub_str = " ".join(sub_strs)
+            
+            # get rid of the parentheses
+            sub_str = sub_str.replace("(", " ").replace(")", " ")
+            
+            # replace the original statement with the new one and call the function again recursively
+            new_statements = statements[:start_paren] + sub_str + statements[end_paren+1:]
+            return _get_statements_from_str(new_statements)
+        
+        # if any '\' python line continuation characters are present, remove them
+        if "\\" in statements:
+            slash_remove = re.compile(r"\\\s?\n\s?")
+            statements = slash_remove.sub("", statements)
+        
+        # initialize a list of all of the statements that will be processed
+        statements_res = []
+        
+        # if there are multiple import statements split by newlines, split them up
+        if "\n" in statements:
+            statements = statements.split("\n")
+            for statement in statements:
+                statements_res.append(statement)
+        else:
+            statements_res.append(statements)
+        
+        return statements_res
     
+    ##########################
+    # main code for reimport #
+    ##########################
+    
+    if isinstance(statements, str):
+        for statement in _get_statements_from_str(statements):
+            _process_single_import_statement(statement)
+    elif isinstance(statements, list) and len(statements) > 0 and isinstance(statements[0], str):
+        for statement in statements:
+            for sttmnt in _get_statements_from_str(statement):
+                _process_single_import_statement(sttmnt)
+    else:
+        raise ValueError(
+            "Input should be a string or a list of strings, where each string is "
+            "an import statement like 'import random', 'import numpy as np', "
+            "'from jeffuitls.utils import stack_trace', etc."
+        )
+
         
 ############################################################
 #                       SQL FUNCTIONS                      #

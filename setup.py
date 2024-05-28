@@ -12,5 +12,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
+    url="https://github.com/jeffxhansen/jeffutils",
     python_requires='>=3.6',
 )
