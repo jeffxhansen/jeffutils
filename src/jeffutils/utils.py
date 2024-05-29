@@ -6,6 +6,7 @@ import sqlite3 as sql
 import json
 import numpy as np
 import pandas as pd
+import pkgutil
 import io
 import os
 import sys
@@ -640,21 +641,27 @@ def reimport(statements:str|list):
         """
         if 'as' in module:
             module_name, alias = module.split(' as ')
-            if module_name in sys.modules:
-                importlib.reload(sys.modules[module_name])
-                module_obj = sys.modules[module_name]
+            module_name = module_name.strip()
+            alias = alias.strip()
+        else:
+            module_name, alias = module, None
+            
+        if module_name in sys.modules:
+            importlib.reload(sys.modules[module_name])
+            module_obj = sys.modules[module_name]
+        else:
+            if "." in module_name:
+                module_obj = _import_module_hierarchy(module_name)[module_name]
             else:
                 module_obj = importlib.import_module(module_name)
+        globals()[module_name] = module_obj
+        
+        if alias:
             globals()[alias] = module_obj
             
-        else:
-            if module in sys.modules:
-                importlib.reload(sys.modules[module])
-                module_obj = sys.modules[module]
-            else:
-                module_obj = importlib.import_module(module)
+        return module_obj
             
-    def _import_sub_fun(module, func):
+    def _import_sub_func(module, func):
         """ handles something like "from random import randint" where 'random'
         is the module and 'randint' is the function
         """
@@ -662,17 +669,87 @@ def reimport(statements:str|list):
             raise AttributeError(f"Module {module} not found in sys.modules")
         module_obj = sys.modules[module]
         
-        if 'as' in func:
+        if ' as ' in func:
             func_name, alias = func.split(' as ')
-            if func_name in dir(module_obj):
+            func_name = func_name.strip()
+            alias = alias.strip()
+        else:
+            func_name, alias = func.strip(), None
+        
+        if func_name in dir(module_obj):
+            if alias:
                 globals()[alias] = getattr(module_obj, func_name)
             else:
-                raise AttributeError(f"Function {func_name} not found in module {module}")
+                globals()[func_name] = getattr(module_obj, func_name)
         else:
-            if func in dir(module_obj):
-                globals()[func] = getattr(module_obj, func)
+            raise AttributeError(f"Function {func_name} not found in module {module}")
+        
+    def _get_sub_modules(module_path:str):
+        """ takes in a module_path like directory.sub_directory and returns a 
+        string of all of the modules in that directory like ['directory.sub_directory.module1',
+        'directory.sub_directory.module2', ...]
+        """
+        module_obj = _import_one(module_path)
+        return [
+            module_info.name
+            for module_info in pkgutil.walk_packages(module_obj.__path__, module_obj.__name__ + ".")
+        ]
+    
+    def _get_type_as_str(parent_module, name):
+        
+        if isinstance(parent_module, str):
+            parent_module_obj = sys.modules[parent_module]
+        else:
+            parent_module_obj = parent_module
+        
+        # if there is an alias in the name, remove it
+        main_portion = name.split(" as ")[0].strip()
+        
+        # packages with modules inside of them don't have attributes for each of the
+        # modules inside of them. Modules with functions, do have string attributes
+        # for each of their functions
+        if hasattr(parent_module_obj, main_portion):
+            return "function"
+        else:
+            return "module"
+
+    def _import_sub_module_component(parent_module, sub_component):
+        sub_component_type = _get_type_as_str(parent_module, sub_component)
+        if sub_component_type == 'module':
+            full_module_name = f"{parent_module}.{sub_component}"
+            _import_one(full_module_name)
+        elif sub_component_type == 'function':
+            _import_sub_func(parent_module, sub_component)
+        else:
+            print(f"Unknown type: {sub_component_type}")
+            
+    def _import_module_hierarchy(module_path:str):
+        """ This takes in a module_path like 'directory.sub_directory.module_name'
+        and imports all the modules in the hierarchy like directory, 
+        director.sub_directory, director.sub_directory.module_name
+        
+        returns a dictionary where the keys are the module paths and the values 
+        are the module objects
+        """
+        parts = module_path.split(".")
+        
+        # keep a record of the module objects for later use
+        module_objs = {}
+        
+        curr_module = ""
+        for i in range(len(parts)):
+            # import everything up to the current module
+            curr_module = ".".join(parts[:i+1])
+            if curr_module in sys.modules:
+                importlib.reload(sys.modules[curr_module])
+                module_obj = sys.modules[curr_module]
             else:
-                raise AttributeError(f"Function {func} not found in module {module}")
+                module_obj = importlib.import_module(curr_module)
+            # add the current_module path to the module_objs dictionary
+            module_objs[curr_module] = module_obj
+            globals()[curr_module] = module_obj
+            
+        return module_objs
             
     def _process_single_import_statement(import_statement:str):
         """ takes in a single import statement like 'import numpy as np' or 'from random import choice'
@@ -698,8 +775,8 @@ def reimport(statements:str|list):
             _import_one(module)
             
             # import each sub-function from the module
-            for func_name in module_names[1:]:
-                _import_sub_fun(module, func_name)
+            for sub_component in module_names[1:]:
+                _import_sub_module_component(module, sub_component)
                 
     def _get_statements_from_str(statements):
         """ takes in a statement representing python import code and returns a list of
