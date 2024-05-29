@@ -639,7 +639,7 @@ def reimport(statements:str|list):
         """ takes in a string like 'random' or 'numpy as np' and imports that
         module with its alias if given
         """
-        if 'as' in module:
+        if ' as ' in module:
             module_name, alias = module.split(' as ')
             module_name = module_name.strip()
             alias = alias.strip()
