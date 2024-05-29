@@ -690,6 +690,9 @@ def reimport(statements:str|list):
         'directory.sub_directory.module2', ...]
         """
         module_obj = _import_one(module_path)
+        if not hasattr(module_obj, "__path__"):
+            return []
+        
         return [
             module_info.name
             for module_info in pkgutil.walk_packages(module_obj.__path__, module_obj.__name__ + ".")
@@ -708,10 +711,11 @@ def reimport(statements:str|list):
         # packages with modules inside of them don't have attributes for each of the
         # modules inside of them. Modules with functions, do have string attributes
         # for each of their functions
-        if hasattr(parent_module_obj, main_portion):
-            return "function"
-        else:
+        full_path = f"{parent_module_obj.__name__}.{main_portion}"
+        if full_path in _get_sub_modules(parent_module):
             return "module"
+        else:
+            return "function"
 
     def _import_sub_module_component(parent_module, sub_component):
         sub_component_type = _get_type_as_str(parent_module, sub_component)
