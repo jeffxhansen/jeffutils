@@ -41,7 +41,7 @@ def stack_trace(e):
     """
     return "".join(traceback.TracebackException.from_exception(e).format())
 
-def curr_time_str(format="%m-%d-%Y"):
+def curr_time_str(format="%Y-%m-%d %H:%M:%S"):
     """returns the current time as a string MM-DD-YYYY"""
     now = datetime.now(timezone.utc)
     now_str = now.strftime(format)
