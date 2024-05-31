@@ -178,7 +178,7 @@ def initialize_log_func_vars_func(LOG_TOGGLE):
     with the LOG_TOGGLE dictionary set to LOG_TOGGLE
     """
     def log_func_vars_func(func_name, vars, globals, locals, header=True):
-        return log_func_vars(func_name, vars, globals, locals, header=header, LOG_TOGGLE=LOG_TOGGLE)
+        return log_func_vars(func_name, vars, globals, locals, header=header, only_log=LOG_TOGGLE)
     
     return log_func_vars_func
             
@@ -477,29 +477,46 @@ def dict_update(d:dict, d_:dict, inplace=False):
         d.update(d_)
 
 
-def time_function(func, *args, **kwargs):
+def time_function(func, args=None, kwargs=None, output_directory=None):
     """takes in a function, its argument, and its keyword arguments. It runs this function
-    and outputs the cProfile timing analysis in the kwargs['output_path'] file. If no 'output_path'
-    in the keyword arguments, then it will just save it to a file called time_output_<func_name> in
+    and outputs the cProfile timing analysis in the 'output_directory' file. If no 'output_directory'
+    is provided, then it will just save it to a file called time_<func_name> in
     the current directory.
     
     example: 
-      time_function(your_function, arg1, arg2, kwarg1=kwarg1, kwarg2=kwarg2, output_path="path/to/file/"))
+      time_function(your_function, args=(arg1, arg2,), kwargs={'kwarg1':kwarg1, 'kwarg2':kwarg2}, output_directory="path/to/file/"))
     """
+    # setup where the output will be saved
     output_name = f"time_{func.__name__}"
-    if 'output_path' in kwargs:
-        output_path = kwargs['output_path'] + output_name
-        del kwargs['output_path']
+    if output_directory is not None:
+        output_path_dir = os.path.dirname(output_directory)
+        output_path = os.path.join(output_path_dir, output_name)
     else:
         output_path = output_name
+    # make sure the directory for the output_path exists
+    output_dir = os.path.dirname(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
         
+    # run the function and save the cProfile timing analysis
     try:
         pr = cProfile.Profile()
         pr.enable()
-        func(*args, **kwargs)
+        if args is not None and kwargs is not None:
+            func(*args, **kwargs)
+        elif args is not None:
+            func(*args)
+        elif kwargs is not None:
+            func(**kwargs)
+        else:
+            func()
+    
+    # make sure that it still outputs the cProfile timing analysis even if the function
+    # is interrupted by a KeyboardInterrupt
     except KeyboardInterrupt as ke:
         pass
     finally:
+        # the cProfile has to go to a .prof file
         pr.disable()
         prof_path = output_path + '.prof'
         text_path = output_path + '.txt'
@@ -507,6 +524,7 @@ def time_function(func, *args, **kwargs):
             file.write("")
         pr.dump_stats(prof_path)
 
+        # load the .prof file into a text file
         s = io.StringIO()
         ps = pstats.Stats(pr, stream=s)
         ps.strip_dirs()
@@ -518,6 +536,7 @@ def time_function(func, *args, **kwargs):
         with open(text_path, 'w+') as file:
             file.write(s.getvalue())
             
+        # remove the .prof path since it is no longer needed
         if os.path.exists(prof_path):
             os.remove(prof_path)
 
