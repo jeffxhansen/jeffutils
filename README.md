@@ -53,7 +53,7 @@ Let's say you change the constants.py so that `start = 0` and `end=1`. If you tr
 The python session is still using the old versions of the `start` and `end` variables. Without restarting your python session, you can run these lines of code:
 ```Python
 >>> from jeffutils.utils import reimport
->>> reimport(["import constants", "from file import random_numbers"])
+>>> reimport(["import constants", "from file import random_numbers"], globals())
 >>> random_numbers(10)
 [1, 1, 1, 0, 1, 1, 0, 0, 1, 1]
 ```
@@ -77,7 +77,7 @@ from constants import (
     another_long_var_name,
     EPOCHS
 )
-from file import func1, func2, func3""")
+from file import func1, func2, func3""", globals())
 ```
 
 ## stack_trace

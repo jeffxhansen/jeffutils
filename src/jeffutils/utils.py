@@ -593,11 +593,13 @@ def monitor_threads(*threads, path="logs/threads_running.json"):
         # every minute
         time.sleep(60)
         
-def reimport(statements:str|list):
+def reimport(statements:str|list, globals):
     """ takes in python import code represented as a string or a list of strings, and
     it reimports all of the modules and functions in the import statements. This allows
     you to reimport modules that have been changed in the background without having to
     restart the kernel.
+    
+    Example Call: reimport("import numpy as np", globals())
     
     The input can either be:
     - a string with a single import statement
@@ -624,6 +626,12 @@ def reimport(statements:str|list):
     
     raises:
     AttributeError: if the module or function is not found in sys.modules
+    
+    GLOBALS NOTE:
+    Note that the function call requires that you pass in globals() as the second argument
+    so that the function can update the global variables with the new imports. If you don't
+    pass in globals(), then the function will not be able to update the global variables with
+    the new imports.
     
     DEPENDENCY NOTE: 
     If you make changes to two files file_1.py and file_2.py, and file_2 imports file_1, if you
@@ -654,10 +662,10 @@ def reimport(statements:str|list):
                 module_obj = _import_module_hierarchy(module_name)[module_name]
             else:
                 module_obj = importlib.import_module(module_name)
-        globals()[module_name] = module_obj
+        globals[module_name] = module_obj
         
         if alias:
-            globals()[alias] = module_obj
+            globals[alias] = module_obj
             
         return module_obj
             
@@ -678,9 +686,9 @@ def reimport(statements:str|list):
         
         if func_name in dir(module_obj):
             if alias:
-                globals()[alias] = getattr(module_obj, func_name)
+                globals[alias] = getattr(module_obj, func_name)
             else:
-                globals()[func_name] = getattr(module_obj, func_name)
+                globals[func_name] = getattr(module_obj, func_name)
         else:
             raise AttributeError(f"Function {func_name} not found in module {module}")
         
@@ -732,7 +740,7 @@ def reimport(statements:str|list):
         
         for func_name in dir(module_obj):
             if not func_name.startswith("_"):
-                globals()[func_name] = getattr(module_obj, func_name)
+                globals[func_name] = getattr(module_obj, func_name)
 
     def _import_sub_module_component(parent_module, sub_component):
         """ handles a situation like 'from parent_module import sub_component' whether
@@ -773,7 +781,7 @@ def reimport(statements:str|list):
                 module_obj = importlib.import_module(curr_module)
             # add the current_module path to the module_objs dictionary
             module_objs[curr_module] = module_obj
-            globals()[curr_module] = module_obj
+            globals[curr_module] = module_obj
             
         return module_objs
             
