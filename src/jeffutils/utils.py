@@ -634,7 +634,7 @@ def reimport(statements:str|list):
     ##########################
     # inner helper functions #
     ##########################
-    
+
     def _import_one(module:str):
         """ takes in a string like 'random' or 'numpy as np' and imports that
         module with its alias if given
@@ -684,12 +684,12 @@ def reimport(statements:str|list):
         else:
             raise AttributeError(f"Function {func_name} not found in module {module}")
         
-    def _get_sub_modules(module_path:str):
-        """ takes in a module_path like directory.sub_directory and returns a 
+    def _get_sub_modules(package_path:str):
+        """ takes in a package_path like directory.sub_directory and returns a 
         string of all of the modules in that directory like ['directory.sub_directory.module1',
         'directory.sub_directory.module2', ...]
         """
-        module_obj = _import_one(module_path)
+        module_obj = _import_one(package_path)
         if not hasattr(module_obj, "__path__"):
             return []
         
@@ -697,8 +697,14 @@ def reimport(statements:str|list):
             module_info.name
             for module_info in pkgutil.walk_packages(module_obj.__path__, module_obj.__name__ + ".")
         ]
-    
+
     def _get_type_as_str(parent_module, name):
+        """ returns 'module' if the name is a module/package, 'function' if the name
+        is a function inside the parent_module.py file, and '*' if the name is a wildcard
+        import like 'from module import *'
+        """
+        if name.strip() == "*":
+            return "*"
         
         if isinstance(parent_module, str):
             parent_module_obj = sys.modules[parent_module]
@@ -716,14 +722,30 @@ def reimport(statements:str|list):
             return "module"
         else:
             return "function"
+        
+    def _import_all_sub_funcs(module):
+        """ handles a situation like from module_name import * where it imports
+        all of the functions inside the module_name.py file """
+        if module not in sys.modules:
+            raise AttributeError(f"Module {module} not found in sys.modules")
+        module_obj = sys.modules[module]
+        
+        for func_name in dir(module_obj):
+            if not func_name.startswith("_"):
+                globals()[func_name] = getattr(module_obj, func_name)
 
     def _import_sub_module_component(parent_module, sub_component):
+        """ handles a situation like 'from parent_module import sub_component' whether
+        that sub_component is another package/module, function or the '*' wildcard
+        """
         sub_component_type = _get_type_as_str(parent_module, sub_component)
         if sub_component_type == 'module':
             full_module_name = f"{parent_module}.{sub_component}"
             _import_one(full_module_name)
         elif sub_component_type == 'function':
             _import_sub_func(parent_module, sub_component)
+        elif sub_component_type == '*':
+            _import_all_sub_funcs(parent_module)
         else:
             print(f"Unknown type: {sub_component_type}")
             
@@ -763,7 +785,12 @@ def reimport(statements:str|list):
         import_statement = import_statement.strip()
         
         # extract all of the modules names ('os', 'numpy as np', 'jeffutils.utils', 'stack_trace')
-        module_re = re.compile(r"(\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b\sas\s\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b|\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b)")
+        module_re = re.compile(
+            r"("
+                r"\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b\sas\s\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b|"
+                r"\b(?!(?:import|from|as))[a-zA-Z0-9._]+\b|"
+                r"(?!(?:import))[*]"
+            r")")
         module_names = module_re.findall(import_statement)
         
         # if a vanilla import statement, import each module
@@ -929,7 +956,7 @@ def get_sql_tables_info(db_path, verbose=True):
         for table_name, col_names in table_info.items():
             print(f'{table_name}:', ", ".join(map(str, col_names)))
             
-    return table_info
+    return dict(table_info)
 
 def get_unique_counts(path_db, table_name, ref_col, cols):
     """

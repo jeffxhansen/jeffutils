@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 setup(
     name='jeffutils',
-    version='0.6.9',
+    version='0.7.0',
     author='Jeff Hansen',
     author_email='jeffxhansen@gmail.com',
-    description='A series of useful functions and decorators I use in most of my projects. Feel free to use them as well :)',
+    description="Welcome to Jeff Hansen's suite of useful python functions! I use lots of these functions on most of my Data Analysis, Backend-Dev, and Machine Learning projects, and I hope you find some of them useful as well!",
     package_dir={"": "src"},
     packages = find_packages(where="src"),
     classifiers=[
