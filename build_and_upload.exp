@@ -1,0 +1,37 @@
+#!/usr/bin/expect -f
+
+#####################################################################
+# This executable script automatically updates the version          #
+# number in setup.py, loads the PyPI secret key from a gitignored   #
+# text file, republishes the new version of the jeffutils PyPI      #
+# package, and then it updates the github repository                #
+#####################################################################
+
+#exp_internal 1
+
+# Set the timeout for the expect command
+set timeout 30
+
+spawn ./update_setup.sh
+
+# Read the PyPI API key from a file
+set api_key_file "pypi_api_key.txt"
+set fp [open $api_key_file r]
+set api_key [read $fp]
+close $fp
+
+# Run the shell script and expect the password prompt
+spawn ./inner_build_and_upload.sh
+expect "Enter your API token:*"
+# Send the password
+send "$api_key"
+send "\r"
+# Wait for the script to complete
+expect eof
+
+# Get the commit message from the command-line arguments
+set commit_message [lindex $argv 0]
+
+# update the github repository to reflect these changes
+spawn ./gits.sh $commit_message
+expect eof
