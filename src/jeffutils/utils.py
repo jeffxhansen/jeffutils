@@ -586,9 +586,7 @@ def monitor_threads(*threads, path="logs/threads_running.json"):
     logs/threads_running.json file
     """
     # if the logs/threads_running.json file doesn't exist, create it
-    if not os.path.exists(path):
-        with open(path, "w+") as file:
-            file.write("{}")
+    create_if_not_exists(path, default_content="{}", delete_if_exists=False)
             
     while True:
         for thread in threads:
@@ -899,6 +897,39 @@ def reimport(statements:str|list, globals):
             "an import statement like 'import random', 'import numpy as np', "
             "'from jeffuitls.utils import stack_trace', etc."
         )
+        
+def create_if_not_exists(file_path, default_content="", delete_if_exists=False):
+    """ if the file_path doesn't exist, it creates the directories
+    and the file with the default_content.
+    
+    returns the file_path
+    """
+    # cehck to see if the file_path provided is a directory or a file
+    file_extension = os.path.splitext(file_path)[1]
+    is_directory = file_extension == ""
+    
+    # if the file_path is a directory, add a trailing slash
+    if is_directory and file_path[-1] != "/":
+        file_path += "/"
+    
+    # create the directory if it doesn't exist
+    dir_name = os.path.dirname(file_path)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+        
+    # if the user wants to delete the file and replace it with the default content
+    # and the file exists, delete it
+    if delete_if_exists and os.path.exists(file_path):
+        os.remove(file_path)
+        
+    # if the file_path is not a directory, and the file doesn't exist,
+    # make it and fill it with the default content
+    if not is_directory and not os.path.exists(file_path):
+        with open(file_path, "w+") as f:
+            f.write(default_content)
+            f.close()
+    
+    return file_path
 
         
 ############################################################
