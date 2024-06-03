@@ -8,6 +8,10 @@ You can install this package from `PyPi` with
 ```
 pip install jeffutils
 ```
+or
+```
+python -m pip install --upgrade jeffutils
+```
 
 # Getting Started
 
@@ -20,6 +24,21 @@ from jeffutils.utils import reimport, stack_trace, log_print
 ```
 
 # Documentation
+
+## Table of Conents
+
+- [Useful python functionality](#useful-python-functionality)
+    - [reimport](#reimport)
+    - [stack_trace](#stack_trace)
+    - [create_if_not_exists](#create_if_not_exists)
+- [NumPy](#numpy)
+    - README sections coming soon (code in src/jeffutils/utils)
+- [Pandas](#pandas)
+    - README sections coming soon (code in src/jeffutils/utils)
+- [SQL](#sql)
+    - README sections coming soon (code in src/jeffutils/utils)
+
+# Useful Python Functionality
 
 ## reimport
 
@@ -99,3 +118,45 @@ try:
 except Exception as e:
     print(stack_trace(e))
 ```
+
+## create_if_not_exists
+
+This function, `create_if_not_exists`, helps to ensure that a file or directory exists. If the specified path doesn't exist, the function will create the necessary directories and file with optional default content. Additionally, it can replace an existing file if specified.
+
+```Python
+from jeffutils.utils import create_if_not_exists
+```
+
+**Example 1: Creating a file and directory**
+
+If both the `logs` directory and the `log.txt` file don't exist, calling the function with `"logs/log.txt"` will automatically create the directory `logs` and the file `log.txt`.
+
+```Python
+file_path = create_if_not_exists("logs/log.txt")
+print(f"File created at: {file_path}") # -> "File created at: logs/log.txt"
+```
+
+**Example 2: Creating a file with default content**
+
+If the `logs/threads_running.json` file doesn't exist, but the `logs/` directory does, calling this function with `create_if_not_exists("logs/threads_running.json", "{}")` will create the `threads_running.json` file and fill it with an empty dictionary `{}`.
+
+```python
+file_path = create_if_not_exists("logs/threads_running.json", "{}")
+print(f"File created at: {file_path}") # -> "File created at: logs/threads_running.json"
+```
+
+# NumPy
+
+Coming soon in the README. The code is in `src/jeffutils/utils.py` with docstrings and examples.
+
+# Pandas
+
+Coming soon in the README. The code is in `src/jeffutils/utils.py` with docstrings and examples.
+
+# SQL
+
+Coming soon in the README. The code is in `src/jeffutils/utils.py` with docstrings and examples.
+
+
+
+
