@@ -914,7 +914,7 @@ def create_if_not_exists(file_path, default_content="", delete_if_exists=False):
     
     # create the directory if it doesn't exist
     dir_name = os.path.dirname(file_path)
-    if not os.path.exists(dir_name):
+    if dir_name != "" and not os.path.exists(dir_name):
         os.makedirs(dir_name)
         
     # if the user wants to delete the file and replace it with the default content
