@@ -1,23 +1,25 @@
 from time import perf_counter
 import time
-from datetime import datetime, timezone
+import threading
 from collections import defaultdict
-import sqlite3 as sql
 import json
-import numpy as np
-import pandas as pd
-import pkgutil
 import io
 import os
 import sys
 import importlib
 import re
-import pstats
-import cProfile
 import traceback
-from IPython.display import display
 from copy import deepcopy
 import ast
+
+import sqlite3 as sql
+import numpy as np
+import pandas as pd
+import pkgutil
+import pstats
+import cProfile
+from IPython.display import display
+from datetime import datetime, timezone
 
 MAX_ROWS = 50
 NP_FLOAT_PRECISION = 7
@@ -595,7 +597,7 @@ def monitor_threads(threads, path="logs/threads_running.json", sleep_duration=60
             if thread.is_alive():
                 with open(path, "r+") as file:
                     running_dict = json.load(file)
-                    running_dict[thread.name] = current_time()
+                    running_dict[thread.name] = current_time(seconds=True)
                     # write the updated dictionary to the file
                     file.seek(0)
                     file.truncate()
@@ -609,6 +611,24 @@ def monitor_threads(threads, path="logs/threads_running.json", sleep_duration=60
         # sleep for 1 minute, so that it only checks all of the threads
         # every minute
         time.sleep(sleep_duration)
+        
+def run_threads(thread_dict, sleep_between=3, monitor=True):
+    
+    threads = []
+    
+    for thread_name, thread in thread_dict.items():
+        t = threading.Thread(target=thread, name=thread_name)
+        threads.append(t)
+        t.start()
+        sleep(sleep_between)
+        
+    if monitor:
+        t = threading.Thread(target=monitor_threads, args=(threads,), kwargs={'path': "dev_threads_running.json", 'sleep_duration': 1}, name="monitor_threads")
+        t.start()
+        threads.append(t)
+        
+    for t in threads:
+        t.join()
         
 def reimport(statements, globals):
     """ takes in python import code represented as a string or a list of strings, and
