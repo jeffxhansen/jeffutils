@@ -610,7 +610,7 @@ def monitor_threads(*threads, path="logs/threads_running.json"):
         # every minute
         time.sleep(60)
         
-def reimport(statements:str|list, globals):
+def reimport(statements, globals):
     """ takes in python import code represented as a string or a list of strings, and
     it reimports all of the modules and functions in the import statements. This allows
     you to reimport modules that have been changed in the background without having to
