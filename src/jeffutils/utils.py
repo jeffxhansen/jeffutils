@@ -578,7 +578,7 @@ def print_skip_exceptions(full_stack_trace=True, log_error=True):
     return wrap
 
 
-def monitor_threads(*threads, path="logs/threads_running.json"):
+def monitor_threads(*threads, path="logs/threads_running.json", sleep_duration=60):
     """ for all of the threads running from this main.py file, this will
     update the logs/threads_running.json every minute or so with a timestamp
     of the last time that each thread was running. If you ever want to know
@@ -608,7 +608,7 @@ def monitor_threads(*threads, path="logs/threads_running.json"):
             
         # sleep for 1 minute, so that it only checks all of the threads
         # every minute
-        time.sleep(60)
+        time.sleep(sleep_duration)
         
 def reimport(statements, globals):
     """ takes in python import code represented as a string or a list of strings, and
