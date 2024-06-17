@@ -275,19 +275,21 @@ def format_text_to_lines(input_text, max_line_length=60):
 # PANDA FUNCTIONS #
 ###################
 
-def set_np_pd_display_params(np, pd):
+def set_np_pd_display_params(np, pd, params=None):
     """sets numpy and pandas display properties"""
+    if params is None:
+        params = {}
     # sets numpy to avoid scientific and only round to the nth decimal
-    np.set_printoptions(precision=NP_FLOAT_PRECISION, suppress=True)
-    np.set_printoptions(formatter={'float': NP_FLOAT_PRECISION_F})
+    np.set_printoptions(precision=params.get('NP_FLOAT_PRECISION', NP_FLOAT_PRECISION), suppress=True)
+    np.set_printoptions(formatter={'float': params.get('NP_FLOAT_PRECISION_F', NP_FLOAT_PRECISION_F)})
 
     # sets pandas to avoid scientific and only round to the nth decimal
-    pd.set_option("display.precision", PD_FLOAT_PRECISION)
-    pd.set_option('display.float_format', PD_FLOAT_PRECISION_F)
+    pd.set_option("display.precision", params.get('PD_FLOAT_PRECISION', PD_FLOAT_PRECISION))
+    pd.set_option('display.float_format', params.get('PD_FLOAT_PRECISION_F', PD_FLOAT_PRECISION_F))
 
     # sets pandas to show all columns and rows
-    pd.set_option('display.max_columns', PD_MAX_COLUMNS)
-    pd.set_option('display.max_rows', PD_MAX_ROWS)
+    pd.set_option('display.max_columns', params.get('PD_MAX_COLUMNS', PD_MAX_COLUMNS))
+    pd.set_option('display.max_rows', params.get('PD_MAX_ROWS', PD_MAX_ROWS))
     
 
 def generate_df(rows, columns, low=0, high=50, np_arr=False):
