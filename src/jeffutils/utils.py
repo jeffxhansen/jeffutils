@@ -612,7 +612,7 @@ def monitor_threads(threads, path="logs/threads_running.json", sleep_duration=60
         # every minute
         time.sleep(sleep_duration)
         
-def run_threads(thread_dict, sleep_between=3, monitor=True):
+def run_threads(thread_dict, seconds_between_threads=3, monitor=True, monitor_path="logs/threads_running.json", monitor_sleep_duration=60):
     
     threads = []
     
@@ -620,10 +620,10 @@ def run_threads(thread_dict, sleep_between=3, monitor=True):
         t = threading.Thread(target=thread, name=thread_name)
         threads.append(t)
         t.start()
-        sleep(sleep_between)
+        time.sleep(seconds_between_threads)
         
     if monitor:
-        t = threading.Thread(target=monitor_threads, args=(threads,), kwargs={'path': "dev_threads_running.json", 'sleep_duration': 1}, name="monitor_threads")
+        t = threading.Thread(target=monitor_threads, args=(threads,), kwargs={'sleep_duration': 1}, name="monitor_threads")
         t.start()
         threads.append(t)
         
