@@ -545,7 +545,7 @@ def time_function(func, args=None, kwargs=None, output_directory=None):
             os.remove(prof_path)
 
             
-def print_skip_exceptions(full_stack_trace=True, log_error=True):
+def print_skip_exceptions(full_stack_trace=True, log_error=True, default_return=None):
     """ a decorator that will just print an exception thrown
     by the function without raising it up the call stack
     
@@ -575,7 +575,7 @@ def print_skip_exceptions(full_stack_trace=True, log_error=True):
                     log_print(string)
                 else:
                     print(string)
-                return None
+                return default_return
             
         return wrapper
     
