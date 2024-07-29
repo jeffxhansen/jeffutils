@@ -364,7 +364,7 @@ def print_display(variable_name, variables, max_rows=None, shuffle=False):
     else:
         print(f"Variable '{variable_name}' not found.")
         
-def movecol(df, cols_to_move=None, ref_col='', place='After', make_copy=True):
+def movecol(df, cols_to_move=None, ref_col='', place='After', make_copy=True) -> pd.DataFrame:
     """
     Move columns within a DataFrame to a specified position relative to a reference column.
 
