@@ -344,7 +344,7 @@ def print_display(variable_name, variables, max_rows=None, shuffle=False):
         
         if type(variable_value) == pd.DataFrame:
             if shuffle:
-                variable_vale = variable_value.sample(frac=1)
+                variable_value = variable_value.sample(frac=1)
                 
             if max_rows is not None and len(variable_value) > max_rows:
                 head_tail = pd.concat([
