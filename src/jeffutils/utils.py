@@ -696,3 +696,114 @@ def create_if_not_exists(file_path, default_content="", delete_if_exists=False):
             f.close()
     
     return file_path
+
+############################################################
+#                           COLOR                          #
+############################################################
+
+# ANSI escape codes for text color
+class Color:
+    """ Valid colors:
+    RESET
+    BLACK
+    RED
+    GREEN
+    YELLOW
+    BLUE
+    MAGENTA
+    CYAN
+    WHITE
+    ORANGE
+    
+    BRIGHT_GREEN
+    BRIGHT_CYAN
+    BRIGHT_YELLOW
+    BRIGHT_RED
+    BRIGHT_BLACK
+    BRIGHT_BLUE
+    BRIGHT_MAGENTA
+    BRIGHT_WHITE
+    BRIGHT_ORANGE
+
+    valid background colors
+    
+    BG_BLACK
+    BG_RED
+    BG_GREEN
+    BG_YELLOW
+    BG_BLUE
+    BG_MAGENTA
+    BG_CYAN
+    BG_WHITE
+
+    BG_BLACK_FAINT
+    BG_WHITE_FAINT
+        
+    BG_BRIGHT_BLACK
+    BG_BRIGHT_RED
+    BG_BRIGHT_GREEN
+    BG_BRIGHT_YELLOW
+    BG_BRIGHT_BLUE
+    BG_BRIGHT_MAGENTA
+    BG_BRIGHT_CYAN
+    BG_BRIGHT_WHITE
+    """
+    RESET = "\033[0m"
+    BLACK = "\033[30m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+    ORANGE = "\033[38;5;208m"
+
+    BRIGHT_GREEN = "\u001b[32;1m"
+    BRIGHT_CYAN = "\u001b[36;1m"
+    BRIGHT_YELLOW = "\u001b[33;1m"
+    BRIGHT_RED = "\u001b[31;1m"
+    BRIGHT_BLACK = "\u001b[30;1m"
+    BRIGHT_BLUE = "\u001b[34;1m"
+    BRIGHT_MAGENTA = "\u001b[35;1m"
+    BRIGHT_WHITE = "\u001b[37;1m"
+    BRIGHT_ORANGE = "\u001b[38;5;208;1m"
+
+    BG_BLACK = "\u001b[40m"
+    BG_RED = "\u001b[41m"
+    BG_GREEN = "\u001b[42m"
+    BG_YELLOW = "\u001b[43m"
+    BG_BLUE = "\u001b[44m"
+    BG_MAGENTA = "\u001b[45m"
+    BG_CYAN = "\u001b[46m"
+    BG_WHITE = "\u001b[47m"
+    
+    BG_BLACK_FAINT = "\u001b[48;5;239"
+    BG_WHITE_FAINT = "\u001b[48;5;241"
+
+    BG_BRIGHT_BLACK = "\u001b[40;1m"
+    BG_BRIGHT_RED = "\u001b[41;1m"
+    BG_BRIGHT_GREEN = "\u001b[42;1m"
+    BG_BRIGHT_YELLOW = "\u001b[43;1m"
+    BG_BRIGHT_BLUE = "\u001b[44;1m"
+    BG_BRIGHT_MAGENTA = "\u001b[45;1m"
+    BG_BRIGHT_CYAN = "\u001b[46;1m"
+    BG_BRIGHT_WHITE = "\u001b[47;1m"
+
+
+def print_colored(text, color):
+    """prints the text string int he specified color"""
+    print(color + text + Color.RESET)
+
+
+def col(text, color):
+    """returns a printable string in a specified color"""
+    return color + text + Color.RESET
+
+
+"""
+Example:
+print_colored("Hello World!", Color.BRIGHT_GREEN) # prints "Hello World!" in bright green
+colored_trext = col("Hello World!", Color.BRIGHT_GREEN) # "Hello World!" in bright green
+"""
+
