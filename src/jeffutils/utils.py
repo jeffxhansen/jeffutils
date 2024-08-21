@@ -791,9 +791,9 @@ class Color:
     BG_BRIGHT_WHITE = "\u001b[47;1m"
 
 
-def print_colored(text, color):
+def print_colored(text, color, **kwargs):
     """prints the text string int he specified color"""
-    print(color + text + Color.RESET)
+    print(color + text + Color.RESET, **kwargs)
 
 
 def col(text, color):
